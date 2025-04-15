@@ -11,8 +11,10 @@
 #include <readline/history.h> //gcc -o shell main.c -lreadline
 
 void execute_command(char *cmd);
+void signal_handler(int sig);
 
 int main(){
+  signal(SIGINT, signal_handler);
   char *input;
   while(1){
     input = readline("yo> "); //Python Input and Auto Malloc
@@ -28,12 +30,12 @@ int main(){
 
 void execute_command(char *cmd){
   char *args[100];
-  char *split = strtok(cmd, " "); //.split() the input(Parsing technically)
+  char *split = strtok(cmd, " "); // .split() the input(Parsing technically)
   int i = 0;
   while (split != NULL){
     args[i++] = split; 
     // printf("%s \n", args[i - 1]);
-    split = strtok(NULL, " ");//Split kora input ke ek space kore agay
+    split = strtok(NULL, " ");// Split kora input ke ek space kore agay
   }
   args[i] = NULL; // Apearently last element NULL na hoile execvp kaj kore na
 
@@ -42,13 +44,28 @@ void execute_command(char *cmd){
   if (pid < 0) {
     printf("Fork Failed");
   } else if (pid == 0) {
-      signal(SIGINT, SIG_DFL); // Reset SIGINT to default behavior for the child
+      signal(SIGINT, SIG_DFL); // Child process always SIGNALINT reset kore nibe
+      
+      if (strcmp(args[0], "cd") == 0) { // cd command kn jani kaj kore na so handling aladha kore
+        if (args[1] == NULL) {
+            printf("cd: missing argument\n");
+        } else {
+            if (chdir(args[1]) != 0) {
+                printf("cd execution failed!\n");
+            }
+        }
+        exit(1);
+      }
 
-      if (execvp(args[0], args) < 0) { // Execute the command
+      else if (execvp(args[0], args) < 0) { // cd bade everyother command
           printf("Command execution failed!\n");
           exit(1);
       }
   } else {
     wait(&status);
   }
+}
+
+void signal_handler(int sig) { // Shell/Parent CTRL+C Signal ignore korbe
+  printf("\nyo> ");
 }
