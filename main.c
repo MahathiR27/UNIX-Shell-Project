@@ -12,9 +12,10 @@
 
 void redirection_command(char *cmd);
 void pipe_command(char *cmd);
+void sequence_command(char *cmd);
 void multiple_command(char *cmd);
-void parse_command(char *cmd);
-void execute_command(char *args[]);
+int parse_command(char *cmd);
+int execute_command(char *args[]);
 void signal_handler(int sig);
 
 int main(){
@@ -23,7 +24,7 @@ int main(){
   // Arrow key diye history anar jonne basically
   char *input;
   while(1){
-    input = readline("yo> "); //Python Input and Auto Malloc
+    input = readline("UwU> "); //Python Input and Auto Malloc
     if (input == NULL){
       continue;
     }
@@ -43,6 +44,9 @@ int main(){
     else if (strchr(input, '<') != NULL || strchr(input, '>') != NULL) {
       redirection_command(input);
     }
+    else if (strstr(input, "&&") != NULL || strchr(input, '&') != NULL) {
+      sequence_command(input);
+    }
     else{
     parse_command(input);
     }
@@ -51,7 +55,7 @@ int main(){
   return 0;
 }
 
-void execute_command(char *args[]){
+int execute_command(char *args[]){
   pid_t pid = fork();
   int status;
   if (pid < 0) {
@@ -60,9 +64,11 @@ void execute_command(char *args[]){
       if (strcmp(args[0], "cd") == 0) { // cd command kn jani kaj kore na so handling aladha kore
         if (args[1] == NULL) {
             printf("cd: missing argument\n");
+            return 0;
         } else {
             if (chdir(args[1]) != 0) {
                 printf("cd execution failed!\n");
+                return 0;
             }
         }
         exit(1);
@@ -70,18 +76,20 @@ void execute_command(char *args[]){
 
       else if (execvp(args[0], args) < 0) { // cd bade everyother command
           printf("Command execution failed!\n");
+          return 0;
           exit(1);
       }
   } else {
     wait(&status);
+    return 1;
   }
 }
 
 void signal_handler(int sig) { // Shell/Parent CTRL+C Signal ignore korbe
-  printf("yo> ");
+  printf("UwU> ");
 }
 
-void parse_command(char *cmd) {
+int parse_command(char *cmd) {
   char *args[1024];
   char *split = strtok(cmd, " ");
   int i = 0;
@@ -90,7 +98,12 @@ void parse_command(char *cmd) {
     split = strtok(NULL, " ");
   }
   args[i] = NULL;
-  execute_command(args);
+  if(execute_command(args)==1){
+    return 1;
+  }
+  else{
+    return 0;
+  }
 }
 
 void multiple_command(char *cmd) {
@@ -106,6 +119,15 @@ void multiple_command(char *cmd) {
   for (int i = 0; i < count; i++) { // Loop kore sob gula commands ek ta ekta parse kore execute korte dibo
     parse_command(commands[i]);
   }
+}
+
+void sequence_command(char *cmd) {
+  char *command_1 = strtok(cmd, "&&");
+  char *command_2 = strtok(NULL, "&&");
+
+  if (parse_command(command_1)==1){  // Command execution kono karone fail hoile 0 return hobe and next part kaj korbe na
+      parse_command(command_2);
+    }
 }
 
 void pipe_command(char *cmd) {
