@@ -10,6 +10,7 @@
 #include <readline/readline.h> //sudo apt-get install libreadline-dev
 #include <readline/history.h> //gcc -o shell main.c -lreadline
 
+void pipe_command(char *cmd);
 void multiple_command(char *cmd);
 void parse_command(char *cmd);
 void execute_command(char *args[]);
@@ -35,6 +36,9 @@ int main(){
     if (strchr(input, ';') != NULL) {
       multiple_command(input); // ; ala commands der split kore loop kore parse e pathabe
     }
+    else if (strchr(input, '|') != NULL) {
+      pipe_command(input);
+    } 
     else{
     parse_command(input);
     }
@@ -98,5 +102,40 @@ void multiple_command(char *cmd) {
 
   for (int i = 0; i < count; i++) { // Loop kore sob gula commands ek ta ekta parse kore execute korte dibo
     parse_command(commands[i]);
+  }
+}
+
+void pipe_command(char *cmd) {
+  char *commands[1024];
+  int count = 0;
+
+  // Split the input by '|'
+  char *command = strtok(cmd, "|");
+  while (command != NULL) {
+    commands[count++] = command;
+    command = strtok(NULL, "|");
+  }
+
+  int pipefd[2];
+  int fd_in = 0; // Basically commands er input outpoint kontha theke nibe point korar jnne
+
+  for (int i = 0; i < count; i++) {
+    pipe(pipefd); 
+
+    pid_t pid = fork();
+    int status;
+    if (pid == 0) {
+      dup2(fd_in, 0); // Standard input terminal theke na niye file theke nibe
+      if (i < count - 1) {
+        dup2(pipefd[1], 1); // Same for output
+      }
+      close(pipefd[0]); 
+      parse_command(commands[i]); // Execute the command
+      exit(0);
+    } else {
+      wait(&status);
+      close(pipefd[1]); 
+      fd_in = pipefd[0]; // last output ta jate next command read kore tai fd_in e set kore dibe
+    }
   }
 }
