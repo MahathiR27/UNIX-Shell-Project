@@ -17,12 +17,20 @@ void signal_handler(int sig);
 
 int main(){
   signal(SIGINT, signal_handler);
+  using_history(); // readline library function jeita diye history storeage create kore.
+  // Arrow key diye history anar jonne basically
   char *input;
   while(1){
     input = readline("yo> "); //Python Input and Auto Malloc
-    if (strcmp(input,"exit")==0){
+    if (input == NULL){
+      continue;
+    }
+    else if (strcmp(input,"exit")==0){
       free(input);
       break;
+    }
+    else{
+      add_history(input); // RAW Input ta ke just oi history storage e add kore dey
     }
     if (strchr(input, ';') != NULL) {
       multiple_command(input); // ; ala commands der split kore loop kore parse e pathabe
@@ -41,8 +49,7 @@ void execute_command(char *args[]){
   if (pid < 0) {
     printf("Fork Failed");
   } else if (pid == 0) {
-      signal(SIGINT, SIG_DFL); // Child process always SIGNALINT reset kore nibe
-      
+      //signal(SIGINT, SIG_DFL); // Child process always SIGNALINT reset kore nibe
       if (strcmp(args[0], "cd") == 0) { // cd command kn jani kaj kore na so handling aladha kore
         if (args[1] == NULL) {
             printf("cd: missing argument\n");
@@ -64,7 +71,7 @@ void execute_command(char *args[]){
 }
 
 void signal_handler(int sig) { // Shell/Parent CTRL+C Signal ignore korbe
-  printf("\nyo> ");
+  printf("yo> ");
 }
 
 void parse_command(char *cmd) {
