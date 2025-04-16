@@ -10,6 +10,7 @@
 #include <readline/readline.h> //sudo apt-get install libreadline-dev
 #include <readline/history.h> //gcc -o shell main.c -lreadline
 
+void redirection_command(char *cmd);
 void pipe_command(char *cmd);
 void multiple_command(char *cmd);
 void parse_command(char *cmd);
@@ -39,6 +40,9 @@ int main(){
     else if (strchr(input, '|') != NULL) {
       pipe_command(input);
     } 
+    else if (strchr(input, '<') != NULL || strchr(input, '>') != NULL) {
+      redirection_command(input);
+    }
     else{
     parse_command(input);
     }
@@ -53,7 +57,6 @@ void execute_command(char *args[]){
   if (pid < 0) {
     printf("Fork Failed");
   } else if (pid == 0) {
-      //signal(SIGINT, SIG_DFL); // Child process always SIGNALINT reset kore nibe
       if (strcmp(args[0], "cd") == 0) { // cd command kn jani kaj kore na so handling aladha kore
         if (args[1] == NULL) {
             printf("cd: missing argument\n");
@@ -138,4 +141,68 @@ void pipe_command(char *cmd) {
       fd_in = pipefd[0]; // last output ta jate next command read kore tai fd_in e set kore dibe
     }
   }
+}
+
+void redirection_command(char *cmd) {
+  char *args[1024];
+  char *input_file = NULL;
+  char *output_file = NULL;
+  int append = 0; 
+
+  char *split = strtok(cmd, " "); 
+  int i = 0;
+  while (split != NULL) { // Space diye split korar pore 2 tar mazjkhane asole kon oparator ase ber kore
+    if (strcmp(split, "<") == 0) { // O_RDONLY
+      split = strtok(NULL, " ");
+      if (split != NULL) {
+        input_file = split;
+      }
+    } else if (strcmp(split, ">") == 0) { // O_WRONLY
+      split = strtok(NULL, " ");
+      if (split != NULL) {
+        output_file = split;
+        append = 0;
+      }
+    } else if (strcmp(split, ">>") == 0) { // O_APPEND
+      split = strtok(NULL, " ");
+      if (split != NULL) {
+        output_file = split;
+        append = 1; 
+      }
+    } else {
+
+      args[i++] = split; // Args e just split kore add dise
+    }
+    split = strtok(NULL, " ");
+  }
+  args[i] = NULL; 
+
+  pid_t pid = fork();
+  int status;
+  if (pid == 0) {
+    if (input_file != NULL) {
+      int fd_in = open(input_file, O_RDONLY);
+
+      dup2(fd_in, 0); // Terminal theke input na niye file theke niye store kore
+      close(fd_in);
+    }
+
+    else if (output_file != NULL) {
+      int fd_out;
+      if (append) {
+        fd_out = open(output_file, O_WRONLY | O_CREAT | O_APPEND, 0644);
+      } else {
+        fd_out = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644); // O_TRUNC =  Truncation file
+      }
+
+      dup2(fd_out, 1); // Terminal e na diye file e output
+      close(fd_out);
+    }
+
+    execvp(args[0], args);
+
+    exit(1);
+  } else if (pid > 0) {
+    wait(&status);
+}
 }
