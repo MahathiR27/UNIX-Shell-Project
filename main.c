@@ -10,7 +10,8 @@
 #include <readline/readline.h> //sudo apt-get install libreadline-dev
 #include <readline/history.h> //gcc -o shell main.c -lreadline
 
-void execute_command(char *cmd);
+void parse_command(char *cmd);
+void execute_command(char *args[]);
 void signal_handler(int sig);
 
 int main(){
@@ -22,23 +23,13 @@ int main(){
       free(input);
       break;
     }
-    execute_command(input);
+    parse_command(input);
     free(input);
   }
   return 0;
 }
 
-void execute_command(char *cmd){
-  char *args[100];
-  char *split = strtok(cmd, " "); // .split() the input(Parsing technically)
-  int i = 0;
-  while (split != NULL){
-    args[i++] = split; 
-    // printf("%s \n", args[i - 1]);
-    split = strtok(NULL, " ");// Split kora input ke ek space kore agay
-  }
-  args[i] = NULL; // Apearently last element NULL na hoile execvp kaj kore na
-
+void execute_command(char *args[]){
   pid_t pid = fork();
   int status;
   if (pid < 0) {
@@ -68,4 +59,16 @@ void execute_command(char *cmd){
 
 void signal_handler(int sig) { // Shell/Parent CTRL+C Signal ignore korbe
   printf("\nyo> ");
+}
+
+void parse_command(char *cmd) {
+  char *args[1024];
+  char *split = strtok(cmd, " ");
+  int i = 0;
+  while (split != NULL) {
+    args[i++] = split;
+    split = strtok(NULL, " ");
+  }
+  args[i] = NULL;
+  execute_command(args);
 }
